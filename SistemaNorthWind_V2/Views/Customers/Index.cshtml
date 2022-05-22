@@ -1,0 +1,274 @@
+﻿
+@{
+    ViewData["Title"] = "Index";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="row">
+    <select id="paisC" name="paisC" class="form-control" asp-items="ViewBag.paises" onchange="getComboBusqueda(this)"></select>
+</div>
+
+<div class="tablaClientes" style="margin-top:15px;">
+    <div class="row" style="margin-top:15px;">
+        <div class="card">
+            <div class="card-header">
+                <div class="row">
+                    <div class="col-10"><h4>Customers</h4></div>
+                </div>
+            </div>
+            <div class="card-body">
+                <table id="grid" class="table table-striped table-hover table-sm table-responsive-xl table-responsive-sm table-responsive-md  ">
+                    <thead>
+                        <tr>
+                            <th>
+                                Company Name
+                            </th>
+                            <th>
+                                Contact Name
+                            </th>
+                        </tr>
+                    </thead>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="tablaOrders" class="tablaOrders" style="margin-top:15px;">
+    <div class="row">
+        <div class="card">
+            <div class="card-header">
+                <div class="row">
+                    <div class="col-4"><h4 id="Titulo_ordenes">Ordenes...</h4></div>
+                    <div class="col-4"><a href="" role="button" class="popup btn btn-outline-primary float-right">Agregar</a></div>
+                    <div class="col-4"><a id="eliminar_ordenes" role="button" class="btn btn-outline-primary float-right">Eliminar</a></div>
+                </div>
+            </div>
+            <div class="card-body">
+                <table id="gridOrders" class="table table-striped table-hover table-sm table-responsive-xl table-responsive-sm table-responsive-md  ">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>
+                                Order ID
+                            </th>
+                            <th>
+                                Customer
+                            </th>
+                            <th>
+                                Order Date
+                            </th>
+                            <th>
+                                Required Date
+                            </th>
+                            <th>
+                                ShipCity
+                            </th>
+                            <th>
+                                Freight
+                            </th>
+                        </tr>
+                    </thead>
+                    <tfoot>
+                        <tr>
+                            <th></th>
+                            <th colspan="5" style="text-align:right;">Total:</th>
+                            <th id="Total_suma"><p></p></th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!--CONTENEDOR MODAL-->
+    <div class="modal fade" id="ModalForm" role="dialog">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 id="tituloModal" class="modal-title">Orden</h4>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body popupWindow" id="ModalBodyDiv">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts{
+    <script src="~/lib/sweetAlert/sweetalert2.all.min.js"></script>
+    <script>
+
+        var toastMixin = Swal.mixin({
+            toast: true,
+            position: 'top',
+            showConfirmButton: false,
+            timer: 1800,
+            timerProgressBar: true
+        });
+
+        var tablaClientes, tablaOrdenes, rendererEdit, $editBtn,clienteSeleccionado;
+
+        tablaOrdenes = $('#gridOrders').grid({
+            primaryKey: 'orderID',
+            dataSource: '/Orders/ObtenerOrdenes',
+            uiLibrary: 'bootstrap4',
+            iconsLibrary: 'fontawesome',
+            selectionMethod: 'checkbox',
+            selectionType: 'multiple',
+            locale: 'es-es',
+            columns: [
+                { field: 'orderID', sortable: true, width: 80, minWidth: 50, priority: 1 },
+                { field: 'companyName', sortable: true, width: 80, minWidth: 50, priority: 2 },
+                { field: 'orderDate', sortable: true, width: 80, minWidth: 50, priority: 3 },
+                { field: 'requiredDate', sortable: true, width: 80, minWidth: 50, priority: 4 },
+                { field: 'shipCity', sortable: true, width: 80, minWidth: 50, priority: 5 },
+                { field: 'freight', sortable: true, width: 80, minWidth: 50, priority: 6 },
+                { field: 'Editar', title: '', width: 20, type: 'icon', icon: 'fas fa-edit', tooltip: 'Editar', events: { 'click': Editar }, minWidth: 9 },
+            ]
+        });
+
+        function Editar(e) {
+            e.preventDefault();
+            $('#tituloModal').text('Editar precio transporte');
+            OpenPopup("/Orders/Editar?orderID=" + e.data.id);
+        }
+
+        $('#eliminar_ordenes').on('click', function () {
+            var selections = tablaOrdenes.getSelections();
+            Swal.fire({
+                title: '¿Estas seguro de eliminar estas ordenes: ' + selections + ' ?',
+                text: "!No serás capaz de revertir esto¡",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: '!Si, eliminar!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        type: "POST",
+                        url: '/Orders/Eliminar',
+                        dataType: "json",
+                        data: { ordenesIDs: selections, customerID:clienteSeleccionado},
+                        success: function (data) {
+                            tablaOrdenes.reload({ page: 1, customerID: data.customerID });
+
+                            ObtenerSumatoriaFreight(data.customerID);
+                        }
+                    });
+                }//fin del evaluacion de confirmación de boton
+            });//then
+            e.preventDefault();
+        });
+
+        tablaOrdenes.on('rowSelect', function (e, $row, id, record) {
+            $('#eliminar_ordenes').show();
+        });
+
+        tablaOrdenes.on('rowUnselect', function (e, $row, id, record) {
+            var datosSeleccionado = tablaOrdenes.getSelections();
+            if (datosSeleccionado.length == 0)
+                $('#eliminar_ordenes').hide();
+        });
+
+        function ObtenerSumatoriaFreight(customerID) {
+            $.ajax({
+                type: "GET",
+                url: '/Orders/ObtenerSumatoriaFreight',
+                data: { customerID: customerID },
+                success: function (data) {
+                    $('#Total_suma').text(data.resultado);
+                }
+            });
+        }
+
+        function OpenPopup(pageUrl) {
+            $('#ModalBodyDiv').load(pageUrl, function () {
+                $('#ModalForm').modal("show");
+            })
+        }
+
+        $(document).ready(function () {
+            $('#eliminar_ordenes').hide();
+            $('.tablaOrders').on('click', 'a.popup', function (e) {
+                e.preventDefault();
+                $('#tituloModal').text('Nueva Orden');
+                OpenPopup($(this).attr('href'));
+            });
+
+
+            $('#paisC').prepend('<option  selected="selected" value="">--Seleccione un país--</option>');
+            $('#tablaOrders').hide();
+
+            tablaClientes = $('#grid').grid({
+                primaryKey: 'customerID',
+                dataSource: '/Customers/ObtenerClientes',
+                uiLibrary: 'bootstrap4',
+                iconsLibrary: 'fontawesome',
+                selectionType: 'single',
+                selectionMethod: 'basic',
+                locale: 'es-es',
+                columns: [
+                    { field: 'companyName', sortable: true, width: 80, minWidth: 50, priority: 1 },
+                    { field: 'contactName', sortable: true, width: 80, minWidth: 50, priority: 2 },
+                ]
+            });
+
+            tablaClientes.on('rowSelect', function (e, $row, id, record) {
+                $('#tablaOrders').show();
+
+                $('#Titulo_ordenes').text('Ordenes de ' + record.companyName);
+
+                var link = '/Orders/Agregar?customerID=' + record.customerID;
+
+                $('.popup').attr('href', link);
+
+                tablaOrdenes.reload({ page: 1, customerID: record.customerID });
+                clienteSeleccionado = record.customerID;
+
+                ObtenerSumatoriaFreight(record.customerID);
+            });
+
+            function MostrarToast(titulo, icono,) {
+                toastMixin.fire({
+                    animation: true,
+                    title: titulo,
+                    icon: icono
+                });
+            }
+
+            //función que envia los datos al servidor introducidos por el cliente a través del formulario
+            $('.popupWindow').on('submit', '#popupForm', function (e) {
+                var url = $('#popupForm')[0].action;
+                $.ajax({
+                    type: "POST",
+                    url: url,
+                    data: $('#popupForm').serialize(),
+                    success: function (data) {
+                        if (data.status) {
+                            $('#popupForm')[0].reset();
+                            $('#ModalForm').modal("hide");
+                            MostrarToast(data.mensaje, "success");
+                            tablaOrdenes.reload({ page: 1, customerID: data.customerID });
+                            ObtenerSumatoriaFreight(data.customerID);
+                        }
+                        else {
+                            MostrarToast(data.mensaje, "error");
+                            tabla.reload();
+                        }
+                    }
+                });
+                e.preventDefault();
+            });
+        });
+
+        function getComboBusqueda(selectObject) {
+            var pais = selectObject.value;
+            tablaClientes.reload({ page: 1, pais: pais });
+        }
+    </script>
+}

@@ -1,0 +1,39 @@
+﻿@model SistemaNorthWind_V2.Persistencia.DapperConexion.Orders.OrdersModel
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <link href="~/css/floating-labels.css" rel="stylesheet" />
+</head>
+<body>
+    <div class="container-fluid">
+        <form asp-action="Editar" asp-controller="Orders" method="post" id="popupForm">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <input type="hidden" asp-for="OrderID"/>
+            <input type="hidden" asp-for="CustomerID" />
+            <div class="form-label-group">
+                <input asp-for="ShipCity" class="form-control" placeholder="Ciudad de envío" disabled>
+                <label asp-for="ShipCity">Ciudad de envío</label>
+                <span asp-validation-for="ShipCity" class="text-danger"></span>
+            </div>
+            <div class="form-label-group">
+                <input asp-for="Freight" class="form-control" placeholder="Costo de transporte">
+                <label asp-for="Freight">Costo de transporte</label>
+                <span asp-validation-for="Freight" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <input type="submit" value="Guardar" class="btn btn-outline-success" />
+                <button type="button" class="btn btn-outline-danger" data-dismiss="modal">Cancelar</button>
+            </div>
+        </form>
+    </div>
+
+    <script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
+    <script src="~/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.min.js"></script>
+</body>
+</html>
